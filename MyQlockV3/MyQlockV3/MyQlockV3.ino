@@ -33,25 +33,19 @@ MyQlock Qlock = MyQlock();
 
 
 elapsedMillis TimeRefreshTimer = 0;
-#define TIME_REFRESH_RATE 500 //ms
 
 elapsedMillis DisplayRefreshTimer = 0;
-#define DISPLAY_REFRESH_RATE 20 //ms (50fps)
 
 elapsedMillis SecondCounter = 0;
-#define ONE_SECOND 1000 // to Reset each second
 
 elapsedMillis NTPTimeout = 0;
-#define NTP_TIMEOUT 5000 // 
 
 elapsedMillis TimeReSyncTimer = 0;
 uint32_t TimeReSyncPeriod = DEFAULT_RESYNC_PERIOD; //try so sync NTP each hour
 boolean NTPUpdateStarted = false;
 uint8_t FirstSyncCounter = 0;
-#define RETRIES_AT_BOOT 5
 
 elapsedMillis WifiConnectTimeout = 0;
-#define WIFI_CONNECT_TIMEOUT 60000
 boolean ConnectedFlag = false;
 uint16_t TimeCounter = 0;
 

@@ -57,7 +57,7 @@ TimeChangeType MyQlock::UpdateTime()
   uint8_t PrevMinute = Minute;
   if ((UnixTimeStamp % 3600) / 60 != Minute)
   {
-    Hour = (UnixTimeStamp  % 86400L) / 3600;
+    Hour = ((UnixTimeStamp+7200)  % 86400L) / 3600;
     Minute = (UnixTimeStamp  % 3600) / 60;
     fxTrigger = true;
   }
@@ -192,33 +192,46 @@ void MyQlock::applyFX()
 
 void MyQlock::writeOutput()
 {
-  
-  TimeChangeType TempChange = UpdateTime();
-  if (fxTrigger)
+  if (true)
   {
-    switch (TempChange)
+    TimeChangeType TempChange = UpdateTime();
+    if (fxTrigger)
     {
-      case HourChange: RunningFX = ColorChangeByBlack;
-        break;
-      case FiveMinutes: RunningFX = Fading;
-        break;
-      case MinuteChange: RunningFX = Fading;
-        break;
-      default: RunningFX = Fading;
-        break;
+      switch (TempChange)
+      {
+        case HourChange: RunningFX = ColorChangeByBlack;
+          break;
+        case FiveMinutes: RunningFX = Fading;
+          break;
+        case MinuteChange: RunningFX = Fading;
+          break;
+        default: RunningFX = Fading;
+          break;
+      }
+    }
+    if (fxTrigger || fxRunning)
+    {
+      applyFX();
+    }
+
+    for (uint8_t x = 0; x < COLUMN_COUNT; x++)    //We check each pixel, if it's supposed to be ON : Set corresponding LED ON, else turn it off
+    {
+      for (uint8_t y = 0; y < ROW_COUNT; y++)
+      {
+        uint8_t LED_Number = Mapping[y][x];
+        if (LED_Number < StripLenght) this->leds[LED_Number] = OutputBuffer[y][x];
+      }
     }
   }
-  if (fxTrigger || fxRunning)
+  else
   {
-    applyFX();
-  }
-
-  for (uint8_t x = 0; x < COLUMN_COUNT; x++)    //We check each pixel, if it's supposed to be ON : Set corresponding LED ON, else turn it off
-  {
-    for (uint8_t y = 0; y < ROW_COUNT; y++)
+    for (uint8_t x = 0; x < COLUMN_COUNT; x++)    //We check each pixel, if it's supposed to be ON : Set corresponding LED ON, else turn it off
     {
-      uint8_t LED_Number = Mapping[y][x];
-      if (LED_Number < StripLenght) this->leds[LED_Number] = OutputBuffer[y][x];
+      for (uint8_t y = 0; y < ROW_COUNT; y++)
+      {
+        uint8_t LED_Number = Mapping[y][x];
+        if (LED_Number < StripLenght) this->leds[LED_Number] = AlternativeBuffer[y][x];
+      }
     }
   }
 }

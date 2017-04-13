@@ -105,6 +105,7 @@ class MyQlock
     uint8_t PreviousFrame[ROW_COUNT][COLUMN_COUNT];
     
     CHSV OutputBuffer[ROW_COUNT][COLUMN_COUNT];
+    CHSV AlternativeBuffer[ROW_COUNT][COLUMN_COUNT];
     CHSV ColorBuffer[ROW_COUNT][COLUMN_COUNT];
     float LinearExtrapolation[ROW_COUNT][COLUMN_COUNT][4]; //contains for each Pixel a1 and b1 (y = a*t + b) and a2 b2 (if Two phases effect)
 

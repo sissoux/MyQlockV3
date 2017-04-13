@@ -13,7 +13,12 @@
 #define REFRESH_RATE 20    // in ms
 #define INPUT_REFRESH_RATE 20
 #define BLINK_RATE 500
-
+#define TIME_REFRESH_RATE 500 //ms
+#define DISPLAY_REFRESH_RATE 20 //ms (50fps)
+#define ONE_SECOND 1000 // to Reset each second
+#define NTP_TIMEOUT 5000 // 
+#define RETRIES_AT_BOOT 5
+#define WIFI_CONNECT_TIMEOUT 60000
 #define DEFAULT_RESYNC_PERIOD 3600000UL
 
 #define R_SENSOR_THRESHOLD 600
