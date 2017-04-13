@@ -51,14 +51,20 @@ void MyQlock::rainbowLoop()
   FastLED.show();
 }
 
-void MyQlock::UpdateTime()
+TimeChangeType MyQlock::UpdateTime()
 {
+  uint8_t PrevHour = Hour;
+  uint8_t PrevMinute = Minute;
   if ((UnixTimeStamp % 3600) / 60 != Minute)
   {
     Hour = (UnixTimeStamp  % 86400L) / 3600;
     Minute = (UnixTimeStamp  % 3600) / 60;
     fxTrigger = true;
   }
+  if (PrevHour != Hour) return HourChange;
+  if (Minute % 5 == 0) return FiveMinutes;
+  if (PrevMinute != Minute) return MinuteChange;
+  return NoChange;
 }
 
 void MyQlock::applyFX()
@@ -99,8 +105,7 @@ void MyQlock::applyFX()
       {
         for (uint8_t y = 0; y < ROW_COUNT; y++)
         {
-
-          OutputBuffer[y][x] = CHSV(0, 255, (uint8_t)(LinearExtrapolation[y][x][0] * LocalTimer + LinearExtrapolation[y][x][1]));
+          OutputBuffer[y][x] = CHSV(NextHue, 255, (uint8_t)(LinearExtrapolation[y][x][0] * LocalTimer + LinearExtrapolation[y][x][1]));
         }
       }
       if (LocalTimer >= FadingDuration) fxRunning = false;
@@ -119,7 +124,7 @@ void MyQlock::applyFX()
         {
           if (PreviousFrame[y][x])
           {
-            LinearExtrapolation[y][x][0] = -255.0 / ((float)FadingDuration / 2.0);
+            LinearExtrapolation[y][x][0] = -255.0 / ((float)FadingDuration);
             LinearExtrapolation[y][x][1] =  255.0;
           }
           else
@@ -130,7 +135,7 @@ void MyQlock::applyFX()
 
           if (AbsolutePixelIsOn[y][x])
           {
-            LinearExtrapolation[y][x][2] = 255.0 / ((float)FadingDuration / 2.0);
+            LinearExtrapolation[y][x][2] = 255.0 / ((float)FadingDuration);
             LinearExtrapolation[y][x][3] = 0;
           }
           else
@@ -141,21 +146,21 @@ void MyQlock::applyFX()
         }
       }
       PreviousHue = NextHue;
-      NextHue = random(0,255);
+      NextHue = random(0, 255);
       LocalTimer = 0;
       fxTrigger = false;
       fxRunning = true;
     }
     if (fxRunning)
     {
-      if (LocalTimer < FadingDuration / 2)
+      if (LocalTimer < FadingDuration)
       {
         for (uint8_t x = 0; x < COLUMN_COUNT; x++)    //run through all pixel
         {
           for (uint8_t y = 0; y < ROW_COUNT; y++)
           {
 
-            OutputBuffer[y][x] = CHSV(PreviousHue, 255, (uint8_t)(LinearExtrapolation[y][x][0] * LocalTimer + LinearExtrapolation[y][x][1]));
+            OutputBuffer[y][x] = CHSV(PreviousHue, 255, constrain((uint16_t)(LinearExtrapolation[y][x][0] * (float)LocalTimer + LinearExtrapolation[y][x][1]), 0, 255));
           }
         }
       }
@@ -166,19 +171,43 @@ void MyQlock::applyFX()
           for (uint8_t y = 0; y < ROW_COUNT; y++)
           {
 
-            OutputBuffer[y][x] = CHSV(NextHue, 255, (uint8_t)(LinearExtrapolation[y][x][2] * LocalTimer-FadingDuration/2 + LinearExtrapolation[y][x][3]));
+            OutputBuffer[y][x] = CHSV(NextHue, 255, constrain((uint16_t)(LinearExtrapolation[y][x][2] * ((float)LocalTimer - ((float)FadingDuration) + LinearExtrapolation[y][x][3])), 0, 255));
           }
         }
       }
-      if (LocalTimer >= FadingDuration) fxRunning = false;
+      if (LocalTimer >= 2 * FadingDuration)
+      {
+        for (uint8_t x = 0; x < COLUMN_COUNT; x++)    //run through all pixel
+        {
+          for (uint8_t y = 0; y < ROW_COUNT; y++)
+          {
+            OutputBuffer[y][x] = CHSV(NextHue, 255, 255 * (AbsolutePixelIsOn[y][x]));
+          }
+        }
+        fxRunning = false;
+      }
     }
   }
 }
 
-
 void MyQlock::writeOutput()
 {
-  UpdateTime();
+  
+  TimeChangeType TempChange = UpdateTime();
+  if (fxTrigger)
+  {
+    switch (TempChange)
+    {
+      case HourChange: RunningFX = ColorChangeByBlack;
+        break;
+      case FiveMinutes: RunningFX = Fading;
+        break;
+      case MinuteChange: RunningFX = Fading;
+        break;
+      default: RunningFX = Fading;
+        break;
+    }
+  }
   if (fxTrigger || fxRunning)
   {
     applyFX();

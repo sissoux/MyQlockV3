@@ -6,11 +6,8 @@
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 
-//#include <TimeLib.h>
 #include "MyQlock.h"
 #include "define.h"
-//#include <Wire.h>
-//#include <DS1307RTC.h>
 #include "Color.h"
 #include <elapsedMillis.h>
 
@@ -41,51 +38,23 @@ elapsedMillis TimeRefreshTimer = 0;
 elapsedMillis DisplayRefreshTimer = 0;
 #define DISPLAY_REFRESH_RATE 20 //ms (50fps)
 
-elapsedMillis SerialRefreshTimer = 0;
-#define SERIAL_REFRESH_RATE 10 //ms
-
-elapsedMillis ChangeColorTimer = 0;
-#define CHANGE_COLOR_RATE 500 //ms
-
 elapsedMillis SecondCounter = 0;
-#define ONE_SECOND 100 // to Reset each second
+#define ONE_SECOND 1000 // to Reset each second
 
 elapsedMillis NTPTimeout = 0;
-#define NTP_TIMEOUT 5000 // to Reset each second
+#define NTP_TIMEOUT 5000 // 
 
 elapsedMillis TimeReSyncTimer = 0;
-#define DEFAULT_RESYNC_PERIOD 3600000UL
 uint32_t TimeReSyncPeriod = DEFAULT_RESYNC_PERIOD; //try so sync NTP each hour
 boolean NTPUpdateStarted = false;
+uint8_t FirstSyncCounter = 0;
+#define RETRIES_AT_BOOT 5
 
+elapsedMillis WifiConnectTimeout = 0;
+#define WIFI_CONNECT_TIMEOUT 60000
+boolean ConnectedFlag = false;
 uint16_t TimeCounter = 0;
 
-double Sign = -0.005;
-
-
-void startWifi()
-{
-  // We start by connecting to a WiFi network
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, pass);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-
-  Serial.println("Starting UDP");
-  udp.begin(localPort);
-  Serial.print("Local port: ");
-  Serial.println(udp.localPort());
-  Serial.println();
-}
 
 void setup()
 {
@@ -102,7 +71,8 @@ void setup()
 #ifdef SERIAL_VERBOSE
   Serial.println("Wifi Initialization...");
 #endif
-  //startWifi();
+  startWifi();
+  SecondCounter = 0; //Reset Second timer
 }
 
 void loop()
@@ -114,10 +84,12 @@ void TaskManager()
 {
   while (SecondCounter >= ONE_SECOND)
   {
-    SecondCounter -= ONE_SECOND; //Substract only one second as we can to remain synchronized to system time
+    SecondCounter -= ONE_SECOND; //Substract only one second as we want to remain synchronized to system time (avoid drifting)
     Qlock.UnixTimeStamp++;
-    TimeCounter++;
+    checkWifi();
+
 #ifdef SERIAL_VERBOSE
+    TimeCounter++;
     if (TimeCounter >= 60) //Print state every minute
     {
       TimeCounter = 0;
@@ -138,103 +110,93 @@ void TaskManager()
     FastLED.show();
   }
 
-  if (SerialRefreshTimer >= SERIAL_REFRESH_RATE)
-  {
-    SerialRefreshTimer = 0;
-    SerialCheck();
-  }
-
-  if (ChangeColorTimer >= CHANGE_COLOR_RATE)
-  {
-    ChangeColorTimer = 0;
-    ColorUpdate();
-  }
-
-  if (TimeReSyncTimer >= TimeReSyncPeriod || !Qlock.HasBeenSync)
+  if (TimeReSyncTimer >= TimeReSyncPeriod || (!Qlock.HasBeenSync && FirstSyncCounter < RETRIES_AT_BOOT))
   {
     TimeReSyncTimer = 0;
-    //UpdateNTP();
+    UpdateNTP();
+#ifdef SERIAL_VERBOSE
+    if ( !Qlock.HasBeenSync && FirstSyncCounter >= RETRIES_AT_BOOT)
+    {
+      Serial.println("Failed to make first synchronization: CLOCK IS NOT SYNCHRONIZED. Retry next sync cycle");
+    }
+#endif
   }
 }
 
-void ColorUpdate()
-{/*
-  if (Qlock.CurrentColor.h < 360)
+
+
+void startWifi()
+{
+  // We start by connecting to a WiFi network
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  WifiConnectTimeout = 0;
+  WiFi.begin(ssid, pass);
+
+  while (WiFi.status() != WL_CONNECTED && WifiConnectTimeout < WIFI_CONNECT_TIMEOUT) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  if (WifiConnectTimeout < WIFI_CONNECT_TIMEOUT)
   {
-    Qlock.CurrentColor.h += 0.1;
+    Serial.println("");
+
+    Serial.println("WiFi connected");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
+
+    Serial.println("Starting UDP");
+    udp.begin(localPort);
+    Serial.print("Local port: ");
+    Serial.println(udp.localPort());
+    Serial.println();
   }
   else
   {
-    Qlock.CurrentColor.h = 0;
-  }
-
-  Qlock.CurrentColor.s = Qlock.CurrentColor.s + Sign;
-  if (Qlock.CurrentColor.s >= 1)
-  {
-    Sign = -0.005;
-    Qlock.CurrentColor.s = 1;
-  }
-  else if (Qlock.CurrentColor.s <= 0)
-  {
-    Sign = 0.01;
-    Qlock.CurrentColor.s = 0;
-  }
-  Qlock.CurrentColor.convertToRGB();*/
-}
-
-void SerialCheck()
-{
-  if (Serial.available())
-  {
-    /*time_t t = processSyncMessage();
-      if (t)
-      {
-      RTC.set(t);   // set the RTC and the system time to the received value
-      setTime(t);
-      }*/
+    Serial.println();
+    Serial.println("Wifi not connected.");
   }
 }
 
-void InitRTC()
-{
-  /*setSyncProvider(RTC.get);
-    if (timeStatus() != timeSet)
-    Serial.println("Unable to sync with the RTC");
-    else
-    Serial.println("RTC has set the system time");
-    setSyncInterval(120);*/
-}
 
 void checkWifi()
 {
-  //connect wifi if not connected
   if (WiFi.status() != WL_CONNECTED)
   {
-    startWifi();
+    ConnectedFlag = false ;
   }
+  else if (ConnectedFlag == false && WiFi.status() == WL_CONNECTED) // We were not connected, but now we are, Sync immediately
+  {
+    ConnectedFlag == true;
+    //FirstSyncCounter = 0;
+    //UpdateNTP();
+  } // THIS IS NOT WORKING
 }
 
 void UpdateNTP()
 {
-  checkWifi();
   if (!NTPUpdateStarted)
   {
-    //get a random server from the pool
-    WiFi.hostByName(ntpServerName, timeServerIP);
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      //get a random server from the pool
+      WiFi.hostByName(ntpServerName, timeServerIP);
 
-    sendNTPpacket(timeServerIP); // send an NTP packet to a time server
-    NTPUpdateStarted = true;
-    NTPTimeout = 0;
-    TimeReSyncPeriod = 500; //Change update rate to half a second because we are waiting for NTP Packet
+      sendNTPpacket(timeServerIP); // send an NTP packet to a time server
+      NTPUpdateStarted = true;
+      NTPTimeout = 0;
+      TimeReSyncPeriod = 500; //Change update rate to half a second because we are waiting for NTP Packet
+    }
+    else
+    {
+      Serial.println("Wifi Not Connected");
+    }
   }
   else if (NTPTimeout < NTP_TIMEOUT)
   {
     int cb = udp.parsePacket();
-    if (!cb)
-    {
-      //Serial.println("no packet yet");
-    }
-    else
+    if (cb)
     {
       Serial.print("packet received, length=");
       Serial.println(cb);
@@ -260,25 +222,16 @@ void UpdateNTP()
       if (!Qlock.HasBeenSync) Qlock.HasBeenSync = true;
       NTPUpdateStarted = false;
       TimeReSyncPeriod = DEFAULT_RESYNC_PERIOD; //Back to normal period
+      SecondCounter = 0; //Reset Second timer
     }
   }
   else
   {
-    Serial.println("Failed to get NTP time, retry next hour");
+    Serial.println("Failed to get NTP time, retry next sync cycle");
     NTPUpdateStarted = false;
+    if (!Qlock.HasBeenSync) FirstSyncCounter++;
     TimeReSyncPeriod = DEFAULT_RESYNC_PERIOD; //Back to normal period
   }
-}
-
-
-unsigned long processSyncMessage()
-{
-  unsigned long pctime = 0L;
-  if (Serial.find(TIME_HEADER))
-  {
-    pctime = Serial.parseInt();
-  }
-  return pctime;
 }
 
 // send an NTP request to the time server at the given address

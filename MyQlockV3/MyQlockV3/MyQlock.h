@@ -21,6 +21,13 @@ typedef enum{
   NOFX
 }FX;
 
+typedef enum{
+  HourChange,
+  FiveMinutes,
+  MinuteChange,
+  NoChange
+}TimeChangeType;
+
 class MyQlock
 {
   public:
@@ -28,8 +35,8 @@ class MyQlock
     MyQlock();
     uint16_t StripLenght = NUM_LEDS;
     uint8_t StripPin = 0;
-    uint32_t UnixTimeStamp;   //Elapsed seconds since jan 1st 1970, not to mix with NTP TimeStamp, since 1900
-    uint32_t LastUnixTimeStamp;   //to Parse time only if new value
+    uint32_t UnixTimeStamp = 3000;   //Elapsed seconds since jan 1st 1970, not to mix with NTP TimeStamp, since 1900
+    uint32_t LastUnixTimeStamp = 3000;   //to Parse time only if new value
     uint8_t Hour = 0;
     uint8_t Minute = 4;
     boolean HasBeenSync = false;
@@ -52,18 +59,11 @@ class MyQlock
     uint32_t timeMaskUpdate(uint8_t H, uint8_t M);
     void pixelStateUpdate(uint32_t TimeMask);
     void writeOutput();
-    void UpdateTime();
+    TimeChangeType UpdateTime();
     void rainbowLoop();
     void applyFX();
     void copyFrame(uint8_t SourceFrame[][COLUMN_COUNT], uint8_t TargetFrame[][COLUMN_COUNT]);
 
-    /*double R = 0;
-      double G = 0;k
-      double B = 0;
-      uint32_t Strip = 0;
-      double h = 0;
-      double s = 0;
-      double v = 0;*/
 
   private:
 
