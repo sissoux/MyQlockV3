@@ -1,6 +1,6 @@
 #include "MyQlock.h"
 #include "FastLED.h"
-
+#include "Snake.h"
 
 MyQlock::MyQlock()
 {
@@ -192,7 +192,7 @@ void MyQlock::applyFX()
 
 void MyQlock::writeOutput()
 {
-  if (true)
+  if (false)
   {
     TimeChangeType TempChange = UpdateTime();
     if (fxTrigger)
@@ -225,6 +225,7 @@ void MyQlock::writeOutput()
   }
   else
   {
+    snake.drawBoard(AlternativeBuffer);
     for (uint8_t x = 0; x < COLUMN_COUNT; x++)    //We check each pixel, if it's supposed to be ON : Set corresponding LED ON, else turn it off
     {
       for (uint8_t y = 0; y < ROW_COUNT; y++)

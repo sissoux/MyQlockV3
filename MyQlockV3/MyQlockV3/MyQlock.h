@@ -6,9 +6,7 @@
 #include "FastLED.h"
 #include "define.h"
 #include <elapsedMillis.h>
-
-#define ROW_COUNT 12
-#define COLUMN_COUNT 13
+#include "Snake.h"
 
 typedef enum{
   Fading,
@@ -48,6 +46,7 @@ class MyQlock
     uint16_t FadingDuration = 1000;
     uint8_t PreviousHue = 0;
     uint8_t NextHue = 0;
+    Snake snake;
 
     FX RunningFX = ColorChangeByBlack;
     FX PreviousFX = NOFX;

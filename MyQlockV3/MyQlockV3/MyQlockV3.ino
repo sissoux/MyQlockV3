@@ -6,10 +6,12 @@
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 
-#include "MyQlock.h"
 #include "define.h"
+#include "MyQlock.h"
 #include "Color.h"
 #include <elapsedMillis.h>
+#include "Snake.h"
+
 
 char ssid[] = "AndroidAlex";  //  your network SSID (name)
 char pass[] = "benisoitfreemobile";       // your network password
@@ -31,6 +33,8 @@ unsigned long sendNTPpacket(IPAddress& address);
 
 MyQlock Qlock = MyQlock();
 
+elapsedMillis SerialTimer = 0;
+#define SERIAL_REFRESH_RATE 10
 
 elapsedMillis TimeRefreshTimer = 0;
 
@@ -59,13 +63,13 @@ void setup()
   Serial.println("*********** MyQlock V3.00 - Vision Of Light 04/11/2017 ***********");
   Serial.println("Qlock Intialization...");
 #endif
-  FastLED.addLeds<LED_TYPE, DATA_PIN, CLOCK_PIN, GBR>(Qlock.leds, NUM_LEDS);
+  FastLED.addLeds<LED_TYPE, DATA_PIN, CLOCK_PIN, BGR>(Qlock.leds, NUM_LEDS);
   Qlock.begin();
   //Qlock.rainbowLoop();
 #ifdef SERIAL_VERBOSE
   Serial.println("Wifi Initialization...");
 #endif
-  startWifi();
+  //startWifi();
   SecondCounter = 0; //Reset Second timer
 }
 
@@ -76,6 +80,33 @@ void loop()
 
 void TaskManager()
 {
+  if (SerialTimer >= SERIAL_REFRESH_RATE)
+  {
+    char Stroke = 'a';
+    SerialTimer = 0;
+    if (Serial.available()) Stroke = Serial.read();
+    while (Serial.available()) Serial.read();
+    switch (Stroke)
+    {
+      case 'z' : Qlock.snake.move(Up);
+        Serial.println("Up");
+        Serial.println(Qlock.snake.Body[0]);
+        break;
+      case 's' : Qlock.snake.move(Down);
+        Serial.println("Down");
+        Serial.println(Qlock.snake.Body[0]);
+        break;
+      case 'q' : Qlock.snake.move(Left);
+        Serial.println("Left");
+        Serial.println(Qlock.snake.Body[0]);
+        break;
+      case 'd' : Qlock.snake.move(Right);
+        Serial.println("Right");
+        Serial.println(Qlock.snake.Body[0]);
+        break;
+    }
+  }
+
   while (SecondCounter >= ONE_SECOND)
   {
     SecondCounter -= ONE_SECOND; //Substract only one second as we want to remain synchronized to system time (avoid drifting)
@@ -107,12 +138,12 @@ void TaskManager()
   if (TimeReSyncTimer >= TimeReSyncPeriod || (!Qlock.HasBeenSync && FirstSyncCounter < RETRIES_AT_BOOT))
   {
     TimeReSyncTimer = 0;
-    UpdateNTP();
+    //UpdateNTP();
 #ifdef SERIAL_VERBOSE
-    if ( !Qlock.HasBeenSync && FirstSyncCounter >= RETRIES_AT_BOOT)
-    {
-      Serial.println("Failed to make first synchronization: CLOCK IS NOT SYNCHRONIZED. Retry next sync cycle");
-    }
+    //if ( !Qlock.HasBeenSync && FirstSyncCounter >= RETRIES_AT_BOOT)
+    //{
+    //  Serial.println("Failed to make first synchronization: CLOCK IS NOT SYNCHRONIZED. Retry next sync cycle");
+    //}
 #endif
   }
 }

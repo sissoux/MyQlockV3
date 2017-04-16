@@ -3,6 +3,9 @@
 #ifndef define_h
 #define define_h
 
+#define ROW_COUNT 12
+#define COLUMN_COUNT 13
+
 #define FANCY_START
 
 #define NUM_LEDS 114
