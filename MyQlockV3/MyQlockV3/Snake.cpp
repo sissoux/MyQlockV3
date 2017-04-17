@@ -56,6 +56,12 @@ int8_t Snake::move(Direction Dir)
     default:
       break;
   }
+  if (Head == Body[1])
+  {
+    Head = Body[0];
+  }
+  else
+  {
   // SI Apple ==> Lenght++ / Reset Apple
   if (Head == Apple)
   {
@@ -63,7 +69,7 @@ int8_t Snake::move(Direction Dir)
     else endGame();
     AppleCaught = true;
   }
-
+  
   uint8_t LenghtMinusOne = this->Lenght - 1;
   for (uint8_t i = 0; i < LenghtMinusOne; i++)
   {
@@ -74,6 +80,7 @@ int8_t Snake::move(Direction Dir)
       return -1;
     }
   }
+  }
   this->Body[0] = Head;
   if (AppleCaught) resetApple();
   AppleCaught = false;
@@ -81,6 +88,7 @@ int8_t Snake::move(Direction Dir)
 
 void Snake::resetBody()
 {
+  Score+=Lenght-2;
   Lenght = 2;
   Body[0] = 1;
   Body[1] = 0;
@@ -100,6 +108,8 @@ void Snake::resetApple()
 
 void Snake::endGame()
 {
+  resetBody();
+  resetApple();
 }
 
 void Snake::drawBoard(CHSV Buffer[][COLUMN_COUNT])
